@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Antrian SPMB SMAN 1 Magetan</title>
+    <style>
+        :root {
+            --primary-color: #003366;
+            --accent-color: #f1c40f;
+            --bg-color: #f4f7f6;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--bg-color); }
+
+        /* Header Section */
+        header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .logo-section { display: flex; align-items: center; gap: 15px; }
+        .logo-placeholder { width: 50px; height: 50px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-weight: bold; }
+        #date-time { text-align: right; font-size: 0.9rem; }
+
+        /* Main Display */
+        .display-container {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            margin: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .current-label { font-size: 1.5rem; color: #555; margin-bottom: 10px; }
+        .queue-number { font-size: 120px; font-weight: bold; color: var(--primary-color); margin: 0; line-height: 1; }
+        .destination-label { font-size: 2rem; color: var(--primary-color); margin-top: 10px; }
+        .go-to { font-size: 1.8rem; color: #e67e22; font-weight: bold; text-transform: uppercase; }
+
+        /* Control Panel */
+        .admin-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 0 20px 20px;
+        }
+        .controls, .history { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        
+        select, input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+        }
+        button {
+            background: #27ae60;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        button:hover { background: #219150; }
+        
+        .history-list { list-style: none; padding: 0; max-height: 200px; overflow-y: auto; }
+        .history-list li { padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo-section">
+        <div class="logo-placeholder">SMA1</div>
+        <div>
+            <h2 style="margin:0">SPMB SMAN 1 Magetan</h2>
+            <small>Jl. Wahid Hasyim No. 2, Magetan</small>
+        </div>
+    </div>
+    <div id="date-time"></div>
+</header>
+
+<main>
+    <div class="display-container">
+        <div class="current-label">ANTRIAN SAAT INI</div>
+        <div class="queue-number" id="active-num">000</div>
+        <div class="go-to">Silahkan Menuju Ke:</div>
+        <div class="destination-label" id="active-op">-</div>
+    </div>
+
+    <div class="admin-panel">
+        <div class="controls">
+            <h3>Panel Kontrol Operator</h3>
+            <label>Nomor Antrian:</label>
+            <input type="number" id="input-num" value="1" min="1">
+            
+            <label>Pilih Operator:</label>
+            <select id="select-op">
+                <option value="Operator 1">Operator 1</option>
+                <option value="Operator 2">Operator 2</option>
+                <option value="Operator 3">Operator 3</option>
+                <option value="Operator 4">Operator 4</option>
+                <option value="Operator 5">Operator 5</option>
+                <option value="Operator 6">Operator 6</option>
+                <option value="Operator 7">Operator 7</option>
+                <option value="Operator 8">Operator 8</option>
+            </select>
+            
+            <button onclick="panggilAntrian()">PANGGIL ANTRIAN</button>
+        </div>
+
+        <div class="history">
+            <h3>Riwayat Pemanggilan</h3>
+            <ul id="history-list" class="history-list">
+                <li style="color:#999">Belum ada riwayat...</li>
+            </ul>
+        </div>
+    </div>
+</main>
+
+<audio id="chime" src="https://www.soundjay.com/buttons/beep-01a.mp3"></audio>
+
+<script>
+    // Update Waktu & Tanggal
+    function updateDateTime() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        document.getElementById('date-time').innerHTML = now.toLocaleDateString('id-ID', options);
+    }
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
+
+    function panggilAntrian() {
+        const nomor = document.getElementById('input-num').value;
+        const operator = document.getElementById('select-op').value;
+        
+        // Update Display
+        document.getElementById('active-num').innerText = nomor.padStart(3, '0');
+        document.getElementById('active-op').innerText = operator;
+
+        // Tambah ke Riwayat
+        tambahRiwayat(nomor, operator);
+
+        // Jalankan Suara
+        playAudio(nomor, operator);
+
+        // Auto increment nomor untuk memudahkan operator
+        document.getElementById('input-num').value = parseInt(nomor) + 1;
+    }
+
+    function tambahRiwayat(nomor, operator) {
+        const list = document.getElementById('history-list');
+        if(list.innerText.includes("Belum ada")) list.innerHTML = "";
+        
+        const time = new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${time}</strong> - Nomor ${nomor} ke ${operator}`;
+        list.insertBefore(li, list.firstChild);
+    }
+
+    function playAudio(nomor, operator) {
+        const chime = document.getElementById('chime');
+        
+        // 1. Bunyi Ding Dong
+        chime.play();
+
+        // 2. Suara Wanita (Web Speech API)
+        // Delay sedikit agar tidak bertabrakan dengan chime
+        setTimeout(() => {
+            const msg = new SpeechSynthesisUtterance();
+            msg.text = `Nomor antrian, ${nomor}, silahkan menuju ke, ${operator}`;
+            msg.lang = 'id-ID';
+            msg.rate = 0.9; // Kecepatan bicara sedikit diperlambat agar jelas
+            
+            // Mencari voice wanita Indonesia jika tersedia di sistem
+            const voices = window.speechSynthesis.getVoices();
+            const idVoice = voices.find(voice => voice.lang.includes('id'));
+            if(idVoice) msg.voice = idVoice;
+
+            window.speechSynthesis.speak(msg);
+        }, 1200);
+    }
+</script>
+
+</body>
+</html>
